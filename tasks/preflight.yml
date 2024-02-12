@@ -1,0 +1,38 @@
+- name: "Check if proxmox access is config"
+  ansible.builtin.assert:
+    that:
+      - prox_host != ""
+      - prox_user != ""
+      - prox_password != ""
+    fail_msg: "Proxmox access is not configured"
+    success_msg: "Proxmox access is configured"
+
+- name: Check proxmox access ({{ prox_user }})
+  community.general.proxmox_domain_info:
+    api_host: "{{ prox_host }}"
+    api_user: "{{ prox_user }}"
+    api_password: "{{ prox_password }}"
+
+- name: "Check if defaults storage ({{ prox_default_storage }}) exists"
+  community.general.proxmox_storage_info:
+    api_host: "{{ prox_host }}"
+    api_user: "{{ prox_user }}"
+    api_password: "{{ prox_password }}"
+    storage: "{{ prox_default_storage }}"
+
+- name: "Check length of prox_template >0"
+  ansible.builtin.assert:
+    that: prox_template | length > 0
+    fail_msg: "please define template"
+    success_msg: "Checking template"
+
+- name: "Check if proxmox template exists"
+  community.general.proxmox_vm_info:
+    api_host: "{{ prox_host }}"
+    api_user: "{{ prox_user }}"
+    api_password: "{{ prox_password }}"
+    name: "{{ item.key }}"
+    node: "{{ item.value }}"
+  loop: "{{ prox_template | dict2items }}"
+  loop_control:
+    label: "Template {{ item.key }} on server {{ item.value }}"

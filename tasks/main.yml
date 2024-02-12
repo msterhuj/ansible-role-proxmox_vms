@@ -1,0 +1,5 @@
+---
+# tasks file for proxmox_vms
+- name: "Run preflight checks"
+  include_tasks: "preflight.yml"
+  run_once: true
