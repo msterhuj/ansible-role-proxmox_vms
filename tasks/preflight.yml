@@ -1,38 +1,39 @@
-- name: "Check if proxmox access is config"
-  ansible.builtin.assert:
-    that:
-      - prox_host != ""
-      - prox_user != ""
-      - prox_password != ""
-    fail_msg: "Proxmox access is not configured"
-    success_msg: "Proxmox access is configured"
-
-- name: Check proxmox access ({{ prox_user }})
+- name: Check proxmox access for user ({{ proxmox_api_user }})
   community.general.proxmox_domain_info:
-    api_host: "{{ prox_host }}"
-    api_user: "{{ prox_user }}"
-    api_password: "{{ prox_password }}"
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
 
-- name: "Check if defaults storage ({{ prox_default_storage }}) exists"
-  community.general.proxmox_storage_info:
-    api_host: "{{ prox_host }}"
-    api_user: "{{ prox_user }}"
-    api_password: "{{ prox_password }}"
-    storage: "{{ prox_default_storage }}"
+- name: "Fail if proxmox_cores is not type int"
+  ansible.builtin.fail:
+    msg: "proxmox_cores must be an integer"
+  when: proxmox_cores | type_debug != "int"
 
-- name: "Check length of prox_template >0"
-  ansible.builtin.assert:
-    that: prox_template | length > 0
-    fail_msg: "please define template"
-    success_msg: "Checking template"
-
-- name: "Check if proxmox template exists"
+- name: "Get proxmox template info"
   community.general.proxmox_vm_info:
-    api_host: "{{ prox_host }}"
-    api_user: "{{ prox_user }}"
-    api_password: "{{ prox_password }}"
-    name: "{{ item.key }}"
-    node: "{{ item.value }}"
-  loop: "{{ prox_template | dict2items }}"
-  loop_control:
-    label: "Template {{ item.key }} on server {{ item.value }}"
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    name: "{{ proxmox_template_name }}"
+  register: prox_template
+
+- name: "Fail if template not found"
+  ansible.builtin.fail:
+    msg: "Template not found"
+  when: prox_template.proxmox_vms | length == 0
+
+- name: "Get vm info from id"
+  community.general.proxmox_vm_info:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_password: "{{ proxmox_api_password }}"
+    vmid: "{{ proxmox_vmid }}"
+  register: proxmox_vm_info
+
+- name: "Check if vmid matches the vm name"
+  ansible.builtin.fail:
+    msg: "VM name do not match with the given id {{ proxmox_vmid }} for name {{ proxmox_vm_name }} name {{ proxmox_vm_info.proxmox_vms[0].name }}"
+  when:
+    - proxmox_vm_info.proxmox_vms | length > 0
+    - proxmox_vm_info.proxmox_vms[0].name != proxmox_vm_name
+  ignore_errors: "{{ proxmox_vm_ignore_vmid_name_mismatch }}"
